@@ -1,0 +1,79 @@
+apiVersion: v2
+name: supabase-kubernetes
+description: A production-ready Helm chart for deploying Supabase on Kubernetes
+type: application
+
+# Chart version - increment for each release
+version: 1.0.0
+
+# Version of Supabase stack
+appVersion: "1.0.0"
+
+# Chart metadata
+home: https://github.com/yourusername/supabase-kubernetes
+sources:
+  - https://github.com/yourusername/supabase-kubernetes
+  - https://github.com/supabase/supabase
+
+keywords:
+  - supabase
+  - postgresql
+  - database
+  - backend
+  - authentication
+  - realtime
+  - storage
+
+maintainers:
+  - name: Your Name
+    email: your.email@example.com
+    url: https://github.com/yourusername
+
+icon: https://supabase.com/brand-assets/supabase-logo-icon.png
+
+annotations:
+  # Helm chart repository annotations
+  artifacthub.io/changes: |
+    - Initial release of Supabase Kubernetes Helm chart
+    - Includes all core Supabase services
+    - Built-in PostgreSQL database with persistence
+    - Automated backup support
+    - Production-ready configurations
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/images: |
+    - name: postgres
+      image: supabase/postgres:15.8.1.060
+    - name: auth
+      image: supabase/gotrue:v2.171.0
+    - name: rest
+      image: postgrest/postgrest:v12.2.11
+    - name: realtime
+      image: supabase/realtime:v2.34.47
+    - name: storage
+      image: supabase/storage-api:v1.22.7
+    - name: studio
+      image: supabase/studio:2025.04.21-sha-173cc56
+    - name: kong
+      image: kong:2.8.1
+    - name: analytics
+      image: supabase/logflare:1.12.0
+    - name: vector
+      image: timberio/vector:0.28.1-alpine
+    - name: imgproxy
+      image: darthsim/imgproxy:v3.8.0
+    - name: meta
+      image: supabase/postgres-meta:v0.88.9
+    - name: functions
+      image: supabase/edge-runtime:v1.67.4
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/operator: "false"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/cert-manager/cert-manager
+    - url: https://artifacthub.io/packages/helm/ingress-nginx/ingress-nginx
+
+dependencies:
+  - name: supabase
+    version: "0.1.3"
+    repository: "file://./supabase-kubernetes/charts/supabase"
+    condition: supabase.enabled

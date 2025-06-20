@@ -1,0 +1,169 @@
+{{- if .Values.supabase.backup.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-supabase-backup-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.supabase.backup.storage.size }}
+  {{- if .Values.supabase.backup.storage.storageClass }}
+  storageClassName: {{ .Values.supabase.backup.storage.storageClass }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-supabase-backup
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.supabase.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.supabase.backup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.supabase.backup.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: postgres-backup
+            image: {{ .Values.supabase.backup.image.repository }}:{{ .Values.supabase.backup.image.tag }}
+            imagePullPolicy: {{ .Values.supabase.backup.image.pullPolicy }}
+            env:
+            - name: PGHOST
+              value: {{ .Release.Name }}-supabase-db
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: {{ .Values.supabase.secret.db.database }}
+            - name: PGUSER
+              value: {{ .Values.supabase.secret.db.username }}
+            - name: PGPASSWORD
+              value: {{ .Values.supabase.secret.db.password }}
+            - name: BACKUP_RETENTION_DAYS
+              value: {{ .Values.supabase.backup.retentionDays | quote }}
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Starting backup at $(date)"
+              
+              # Create backup directory with timestamp
+              BACKUP_DIR="/backups"
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_NAME="supabase_backup_${TIMESTAMP}"
+              
+              # Create backup using pg_dump with custom format for better compression
+              echo "Creating backup: ${BACKUP_NAME}"
+              pg_dump -Fc -v -f "${BACKUP_DIR}/${BACKUP_NAME}.dump"
+              
+              # Also create a SQL format backup for easier inspection
+              pg_dump -f "${BACKUP_DIR}/${BACKUP_NAME}.sql"
+              
+              # Compress the SQL backup
+              gzip "${BACKUP_DIR}/${BACKUP_NAME}.sql"
+              
+              # List backup files
+              echo "Backup completed. Current backups:"
+              ls -lh ${BACKUP_DIR}/
+              
+              # Clean up old backups
+              echo "Cleaning up backups older than ${BACKUP_RETENTION_DAYS} days"
+              find ${BACKUP_DIR} -name "supabase_backup_*.dump" -mtime +${BACKUP_RETENTION_DAYS} -delete
+              find ${BACKUP_DIR} -name "supabase_backup_*.sql.gz" -mtime +${BACKUP_RETENTION_DAYS} -delete
+              
+              echo "Backup process completed at $(date)"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+            resources:
+              requests:
+                memory: {{ .Values.supabase.backup.resources.requests.memory }}
+                cpu: {{ .Values.supabase.backup.resources.requests.cpu }}
+              limits:
+                memory: {{ .Values.supabase.backup.resources.limits.memory }}
+                cpu: {{ .Values.supabase.backup.resources.limits.cpu }}
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: {{ .Release.Name }}-supabase-backup-pvc
+---
+{{- if .Values.supabase.backup.s3.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-supabase-backup-s3
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.supabase.backup.s3.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: postgres-backup-s3
+            image: {{ .Values.supabase.backup.image.repository }}:{{ .Values.supabase.backup.image.tag }}
+            imagePullPolicy: {{ .Values.supabase.backup.image.pullPolicy }}
+            env:
+            - name: PGHOST
+              value: {{ .Release.Name }}-supabase-db
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: {{ .Values.supabase.secret.db.database }}
+            - name: PGUSER
+              value: {{ .Values.supabase.secret.db.username }}
+            - name: PGPASSWORD
+              value: {{ .Values.supabase.secret.db.password }}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.supabase.backup.s3.accessKeyId }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.supabase.backup.s3.secretAccessKey }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.supabase.backup.s3.region }}
+            - name: S3_BUCKET
+              value: {{ .Values.supabase.backup.s3.bucket }}
+            - name: S3_PREFIX
+              value: {{ .Values.supabase.backup.s3.prefix }}
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Starting S3 backup at $(date)"
+              
+              # Install AWS CLI if not present
+              if ! command -v aws &> /dev/null; then
+                apt-get update && apt-get install -y awscli
+              fi
+              
+              # Create backup
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_NAME="supabase_backup_${TIMESTAMP}.dump"
+              
+              echo "Creating backup: ${BACKUP_NAME}"
+              pg_dump -Fc -v | aws s3 cp - "s3://${S3_BUCKET}/${S3_PREFIX}/${BACKUP_NAME}"
+              
+              # List recent backups
+              echo "Recent backups in S3:"
+              aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}/" --recursive | tail -10
+              
+              echo "S3 backup completed at $(date)"
+            resources:
+              requests:
+                memory: {{ .Values.supabase.backup.resources.requests.memory }}
+                cpu: {{ .Values.supabase.backup.resources.requests.cpu }}
+              limits:
+                memory: {{ .Values.supabase.backup.resources.limits.memory }}
+                cpu: {{ .Values.supabase.backup.resources.limits.cpu }}
+{{- end }}
+{{- end }}

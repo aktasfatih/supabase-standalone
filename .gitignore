@@ -1,0 +1,49 @@
+# Helm chart build artifacts
+*.tgz
+charts/*.tgz
+Chart.lock
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.project
+.settings/
+
+# Helm template output
+output/
+rendered/
+
+# Sensitive values files (user should create their own)
+my-values.yaml
+*-values.yaml
+!values.yaml
+!values.example.yaml
+
+# Backup files
+*.bak
+*.backup
+
+# Test files
+test-output/
+coverage/
+
+# Documentation build
+docs/_build/
+site/

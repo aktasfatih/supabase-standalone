@@ -1,0 +1,406 @@
+# Default values for supabase-standalone.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Global settings
+global:
+  # -- Override the naming of all resources
+  nameOverride: ""
+  # -- Override the fullname of all resources
+  fullnameOverride: ""
+
+# -- Supabase configuration
+supabase:
+  # -- Enable Supabase deployment
+  enabled: true
+  
+  # -- Database configuration (using built-in PostgreSQL)
+  db:
+    # -- Enable built-in PostgreSQL database
+    enabled: true
+    image:
+      # -- PostgreSQL image tag
+      # @default -- supabase/postgres:15.8.1.060
+      tag: "15.8.1.060"
+    
+    persistence:
+      # -- Enable persistence for database
+      enabled: true
+      # -- Storage size for database
+      size: 8Gi
+      # -- Storage class (leave empty for default)
+      storageClass: ""
+  
+  # -- Secret configuration
+  # IMPORTANT: Generate new values for production use!
+  # Visit https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+  secret:
+    # -- JWT configuration
+    jwt:
+      # -- Anonymous key - CHANGE THIS! Generate using Supabase CLI or online tools
+      anonKey: "YOUR-ANON-KEY"
+      # -- Service role key - CHANGE THIS! Generate using Supabase CLI or online tools  
+      serviceKey: "YOUR-SERVICE-KEY"
+      # -- JWT secret - CHANGE THIS! Must match the secret used to generate above keys
+      secret: "YOUR-SUPER-SECRET-JWT-SECRET-WITH-AT-LEAST-32-CHARACTERS"
+      # -- Use existing secret (overrides above values)
+      secretRef: ""
+    
+    # -- Database credentials
+    db:
+      # -- Database username
+      username: "postgres"
+      # -- Database password - CHANGE THIS!
+      password: "your-super-secret-password"
+      # -- Database name
+      database: "postgres"
+      # -- Use existing secret (overrides above values)
+      secretRef: ""
+    
+    # -- SMTP configuration for email functionality
+    smtp:
+      # -- SMTP username
+      username: ""
+      # -- SMTP password
+      password: ""
+      # -- Use existing secret (overrides above values)
+      secretRef: ""
+    
+    # -- Dashboard authentication (optional)
+    dashboard:
+      # -- Dashboard username
+      username: ""
+      # -- Dashboard password
+      password: ""
+      # -- Use existing secret (overrides above values)
+      secretRef: ""
+    
+    # -- Analytics configuration
+    analytics:
+      # -- Analytics API key
+      apiKey: "your-analytics-api-key"
+      # -- Use existing secret (overrides above values)
+      secretRef: ""
+
+  # -- Studio (UI) configuration
+  studio:
+    # -- Enable Studio deployment
+    enabled: true
+    image:
+      # -- Studio image tag
+      tag: "2025.04.21-sha-173cc56"
+    environment:
+      # -- Default organization name
+      STUDIO_DEFAULT_ORGANIZATION: "Default Organization"
+      # -- Default project name
+      STUDIO_DEFAULT_PROJECT: "Default Project"
+      # -- Public URL for Supabase (update this!)
+      SUPABASE_PUBLIC_URL: "https://supabase.yourdomain.com"
+      # -- Enable logs in Studio
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 3000
+      initialDelaySeconds: 3
+
+  # -- Auth service configuration
+  auth:
+    # -- Enable Auth service
+    enabled: true
+    image:
+      # -- Auth image tag
+      tag: "v2.171.0"
+    environment:
+      # -- External URL (update this!)
+      API_EXTERNAL_URL: "https://supabase.yourdomain.com"
+      # -- Site URL (update this!)
+      GOTRUE_SITE_URL: "https://supabase.yourdomain.com"
+      # -- Allowed redirect URLs (* for all)
+      GOTRUE_URI_ALLOW_LIST: "*"
+      # -- Disable signup
+      GOTRUE_DISABLE_SIGNUP: "false"
+      # -- Enable email
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      # -- Auto-confirm emails
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      # -- Enable secure email change
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: true
+      # -- SMTP settings
+      GOTRUE_SMTP_ADMIN_EMAIL: "admin@yourdomain.com"
+      GOTRUE_SMTP_HOST: "smtp.yourdomain.com"
+      GOTRUE_SMTP_PORT: "587"
+      GOTRUE_SMTP_SENDER_NAME: "noreply@yourdomain.com"
+      # -- Additional settings
+      GOTRUE_SMTP_MAX_FREQUENCY: "1s"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      GOTRUE_JWT_ADMIN_ROLES: "service_role"
+      GOTRUE_JWT_AUD: "authenticated"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: "authenticated"
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_MAILER_URLPATHS_INVITE: "/auth/v1/verify"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: "/auth/v1/verify"
+      GOTRUE_MAILER_URLPATHS_RECOVERY: "/auth/v1/verify"
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: "/auth/v1/verify"
+
+  # -- REST API configuration
+  rest:
+    # -- Enable REST API
+    enabled: true
+    image:
+      # -- REST API image tag
+      tag: "v12.2.11"
+    environment:
+      # -- Exposed schemas
+      PGRST_DB_SCHEMAS: "public,storage"
+      # -- Anonymous role
+      PGRST_DB_ANON_ROLE: "anon"
+      # -- Legacy GUCs
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      # -- JWT expiry
+      PGRST_APP_SETTINGS_JWT_EXP: "3600"
+
+  # -- Realtime service configuration
+  realtime:
+    # -- Enable Realtime service
+    enabled: true
+    image:
+      # -- Realtime image tag
+      tag: "v2.34.47"
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 4000
+      initialDelaySeconds: 3
+    environment:
+      # -- Port
+      PORT: "4000"
+      # -- Database encryption key
+      DB_ENC_KEY: "supabaserealtime"
+      # -- Replication slot name
+      SLOT_NAME: "supabase_realtime_rls"
+      # -- Temporary slot
+      TEMPORARY_SLOT: "true"
+      # -- Replication mode
+      REPLICATION_MODE: "RLS"
+      # -- Poll interval
+      REPLICATION_POLL_INTERVAL: "100"
+      # -- Secret key base (generate a new one!)
+      SECRET_KEY_BASE: "CHANGE-ME-GENERATE-A-NEW-SECRET-KEY-BASE"
+      # -- Additional settings
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      FLY_ALLOC_ID: "fly123"
+      FLY_APP_NAME: "realtime"
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+      APP_NAME: "realtime"
+
+  # -- Meta service configuration
+  meta:
+    # -- Enable Meta service
+    enabled: true
+    image:
+      # -- Meta image tag
+      tag: "v0.88.9"
+    environment:
+      # -- Meta port
+      PG_META_PORT: "8080"
+
+  # -- Storage service configuration
+  storage:
+    # -- Enable Storage service
+    enabled: true
+    image:
+      # -- Storage image tag
+      tag: "v1.22.7"
+    livenessProbe:
+      httpGet:
+        path: /status
+        port: 5000
+      initialDelaySeconds: 3
+    persistence:
+      # -- Enable persistence for storage
+      enabled: true
+      # -- Storage size
+      size: 10Gi
+      # -- Storage class
+      storageClass: ""
+      # -- Annotations for PVC
+      annotations:
+        helm.sh/resource-policy: keep
+    environment:
+      # -- PostgREST URL (will be auto-configured)
+      POSTGREST_URL: ""
+      # -- File size limit (bytes)
+      FILE_SIZE_LIMIT: "52428800"
+      # -- Storage backend (file or s3)
+      STORAGE_BACKEND: "file"
+      # -- File storage path
+      FILE_STORAGE_BACKEND_PATH: "/var/lib/storage"
+      # -- Additional settings
+      PGOPTIONS: "-c search_path=storage,public"
+      TENANT_ID: "stub"
+      REGION: "stub"
+      GLOBAL_S3_BUCKET: "stub"
+
+  # -- Image proxy configuration
+  imgproxy:
+    # -- Enable image proxy
+    enabled: true
+    image:
+      # -- Image proxy tag
+      tag: "v3.8.0"
+    environment:
+      # -- Enable WebP detection
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+    livenessProbe:
+      exec:
+        command:
+          - imgproxy
+          - health
+      initialDelaySeconds: 3
+    persistence:
+      # -- Enable persistence
+      enabled: false
+
+  # -- Kong API Gateway configuration
+  kong:
+    # -- Enable Kong
+    enabled: true
+    image:
+      repository: kong
+      # -- Kong image tag
+      tag: "2.8.1"
+    environment:
+      # -- Kong config file
+      KONG_DECLARATIVE_CONFIG: "/usr/local/kong/kong.yml"
+      # -- Log level
+      KONG_LOG_LEVEL: "info"
+    # -- Ingress configuration
+    ingress:
+      # -- Enable ingress
+      enabled: true
+      # -- Ingress class
+      className: "nginx"
+      # -- Ingress annotations
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+        # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+        # kubernetes.io/tls-acme: "true"
+      # -- TLS configuration
+      tls: []
+        # - secretName: supabase-tls
+        #   hosts:
+        #     - supabase.yourdomain.com
+      # -- Hosts configuration
+      hosts:
+        - host: supabase.yourdomain.com
+          paths:
+            - path: /
+              pathType: Prefix
+
+  # -- Analytics service configuration
+  analytics:
+    # -- Enable Analytics
+    enabled: true
+    image:
+      # -- Analytics image tag
+      tag: "1.12.0"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 4000
+      initialDelaySeconds: 3
+    environment:
+      # -- Node host
+      LOGFLARE_NODE_HOST: "127.0.0.1"
+      # -- Single tenant mode
+      LOGFLARE_SINGLE_TENANT: "true"
+      # -- Supabase mode
+      LOGFLARE_SUPABASE_MODE: "true"
+      # -- Feature flags
+      FEATURE_FLAG_OVERRIDE: "multibackend=true"
+
+  # -- Vector logs aggregator configuration
+  vector:
+    # -- Enable Vector
+    enabled: true
+    image:
+      # -- Vector image tag
+      tag: "0.28.1-alpine"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 9001
+      initialDelaySeconds: 3
+    # -- Volume mounts for logs
+    volumeMounts:
+      - name: pod-logs
+        mountPath: /var/log/pods
+    # -- Volumes for logs
+    volumes:
+      - name: pod-logs
+        hostPath:
+          path: /var/log/pods
+
+  # -- Functions service configuration
+  functions:
+    # -- Enable Functions
+    enabled: true
+    image:
+      # -- Functions image tag
+      tag: "v1.67.4"
+
+  # -- Backup configuration
+  backup:
+    # -- Enable automated backups
+    enabled: true
+    # -- Backup schedule (cron format)
+    schedule: "0 2 * * *"
+    # -- Number of successful backups to keep
+    successfulJobsHistoryLimit: 3
+    # -- Number of failed backups to keep
+    failedJobsHistoryLimit: 3
+    # -- Days to retain backups
+    retentionDays: 30
+    
+    image:
+      repository: supabase/postgres
+      # -- Backup image tag
+      tag: "15.8.1.060"
+      pullPolicy: IfNotPresent
+    
+    # -- Local storage for backups
+    storage:
+      # -- Storage size
+      size: 50Gi
+      # -- Storage class (leave empty for default)
+      storageClass: ""
+    
+    # -- S3 backup configuration (optional)
+    s3:
+      # -- Enable S3 backups
+      enabled: false
+      # -- S3 backup schedule
+      schedule: "0 3 * * *"
+      # -- S3 bucket name
+      bucket: ""
+      # -- S3 prefix
+      prefix: "supabase-backups"
+      # -- S3 region
+      region: "us-east-1"
+      # -- S3 access key ID
+      accessKeyId: ""
+      # -- S3 secret access key
+      secretAccessKey: ""
+    
+    # -- Resources for backup jobs
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
