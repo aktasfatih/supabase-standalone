@@ -805,6 +805,12 @@ kong:
       nginx.ingress.kubernetes.io/rewrite-target: /
       # cert-manager.io/cluster-issuer: "letsencrypt-staging"
       # kubernetes.io/tls-acme: "true"
+      # Sticky sessions for WebSocket support
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+      nginx.ingress.kubernetes.io/session-cookie-name: "route"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "86400"
+
     tls: []
       # Define TLS secret for SSL termination.
       # This section can be left blank if using cluster certificate manager.
