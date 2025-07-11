@@ -196,6 +196,11 @@ supabase:
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
       APP_NAME: "realtime"
+      # Self-hosting configuration - this will auto-create the tenant
+      SEED_SELF_HOST: "true"
+      # This is set somehow, I didn't dig into it but we have to set it 
+      # to the right value for realtime to work. Otherwise, pod throws tenant errors.
+      SELF_HOST_TENANT_NAME: "tenant name used"
 
   # -- Meta service configuration
   meta:
