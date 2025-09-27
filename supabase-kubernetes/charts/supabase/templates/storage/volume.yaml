@@ -1,5 +1,6 @@
 {{- if .Values.storage.enabled -}}
 {{- if .Values.storage.persistence.enabled -}}
+{{- if not (hasKey .Values.storage.persistence "createPVC") | or .Values.storage.persistence.createPVC -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -21,5 +22,6 @@ spec:
   resources:
     requests:
       storage: {{ .Values.storage.persistence.size | quote }}
+{{- end }}
 {{- end }}
 {{- end }}

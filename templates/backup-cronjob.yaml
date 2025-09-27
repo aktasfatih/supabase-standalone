@@ -1,9 +1,12 @@
 {{- if .Values.supabase.backup.enabled }}
+{{- if not (hasKey .Values.supabase.backup.storage "createPVC") | or .Values.supabase.backup.storage.createPVC }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-supabase-backup-pvc
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - ReadWriteOnce
@@ -13,6 +16,7 @@ spec:
   {{- if .Values.supabase.backup.storage.storageClass }}
   storageClassName: {{ .Values.supabase.backup.storage.storageClass }}
   {{- end }}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: CronJob

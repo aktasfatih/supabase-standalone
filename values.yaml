@@ -26,10 +26,18 @@ supabase:
     persistence:
       # -- Enable persistence for database
       enabled: true
+      # -- Create PVC (set to false if PVC already exists)
+      createPVC: true
       # -- Storage size for database
       size: 8Gi
       # -- Storage class (leave empty for default)
       storageClass: ""
+      # -- Access modes
+      accessModes:
+        - ReadWriteOnce
+      # -- Annotations for PVC
+      annotations:
+        helm.sh/resource-policy: keep
   
   # -- Secret configuration
   # IMPORTANT: Generate new values for production use!
@@ -228,10 +236,15 @@ supabase:
     persistence:
       # -- Enable persistence for storage
       enabled: true
+      # -- Create PVC (set to false if PVC already exists)
+      createPVC: true
       # -- Storage size
       size: 10Gi
       # -- Storage class
       storageClass: ""
+      # -- Access modes
+      accessModes:
+        - ReadWriteOnce
       # -- Annotations for PVC
       annotations:
         helm.sh/resource-policy: keep
@@ -379,10 +392,18 @@ supabase:
     
     # -- Local storage for backups
     storage:
+      # -- Create PVC (set to false if PVC already exists)
+      createPVC: true
       # -- Storage size
       size: 50Gi
       # -- Storage class (leave empty for default)
       storageClass: ""
+      # -- Access modes
+      accessModes:
+        - ReadWriteOnce
+      # -- Annotations for PVC
+      annotations:
+        helm.sh/resource-policy: keep
     
     # -- S3 backup configuration (optional)
     s3:
