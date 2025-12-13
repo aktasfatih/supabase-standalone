@@ -50,6 +50,30 @@ spec:
               value: {{ .Values.supabase.secret.db.password }}
             - name: BACKUP_RETENTION_DAYS
               value: {{ .Values.supabase.backup.retentionDays | quote }}
+            {{- if .Values.supabase.backup.s3.enabled }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.supabase.backup.s3.secretRef | default (printf "%s-backup-s3-credentials" .Release.Name) }}
+                  key: {{ .Values.supabase.backup.s3.secretKeys.accessKeyId | default "AWS_ACCESS_KEY_ID" }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.supabase.backup.s3.secretRef | default (printf "%s-backup-s3-credentials" .Release.Name) }}
+                  key: {{ .Values.supabase.backup.s3.secretKeys.secretAccessKey | default "AWS_SECRET_ACCESS_KEY" }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.supabase.backup.s3.region | default "us-east-1" | quote }}
+            - name: S3_BUCKET
+              value: {{ .Values.supabase.backup.s3.bucket | quote }}
+            - name: S3_PREFIX
+              value: {{ .Values.supabase.backup.s3.prefix | quote }}
+            - name: S3_ENDPOINT
+              value: {{ .Values.supabase.backup.s3.endpoint | quote }}
+            - name: S3_USE_SSL
+              value: {{ .Values.supabase.backup.s3.useSSL | quote }}
+            - name: S3_INSECURE
+              value: {{ .Values.supabase.backup.s3.insecure | quote }}
+            {{- end }}
             command:
             - /bin/bash
             - -c
@@ -80,7 +104,45 @@ spec:
               echo "Cleaning up backups older than ${BACKUP_RETENTION_DAYS} days"
               find ${BACKUP_DIR} -name "supabase_backup_*.dump" -mtime +${BACKUP_RETENTION_DAYS} -delete
               find ${BACKUP_DIR} -name "supabase_backup_*.sql.gz" -mtime +${BACKUP_RETENTION_DAYS} -delete
-              
+
+              {{- if .Values.supabase.backup.s3.enabled }}
+              # Upload to S3/MinIO
+              echo "Uploading backup to S3..."
+
+              # Install AWS CLI if not present
+              if ! command -v aws &> /dev/null; then
+                echo "Installing AWS CLI..."
+                apt-get update -qq && apt-get install -y -qq awscli --no-install-recommends
+              fi
+
+              # Build endpoint URL arguments for S3-compatible storage
+              S3_ARGS=""
+              if [ -n "${S3_ENDPOINT}" ]; then
+                if [ "${S3_USE_SSL}" = "true" ]; then
+                  S3_ARGS="--endpoint-url https://${S3_ENDPOINT}"
+                else
+                  S3_ARGS="--endpoint-url http://${S3_ENDPOINT}"
+                fi
+              fi
+              if [ "${S3_INSECURE}" = "true" ]; then
+                S3_ARGS="${S3_ARGS} --no-verify-ssl"
+              fi
+
+              # Upload the .dump file
+              echo "Uploading ${BACKUP_NAME}.dump to s3://${S3_BUCKET}/${S3_PREFIX}/"
+              aws s3 cp ${S3_ARGS} "${BACKUP_DIR}/${BACKUP_NAME}.dump" "s3://${S3_BUCKET}/${S3_PREFIX}/${BACKUP_NAME}.dump"
+
+              # Upload the gzipped SQL file
+              echo "Uploading ${BACKUP_NAME}.sql.gz to s3://${S3_BUCKET}/${S3_PREFIX}/"
+              aws s3 cp ${S3_ARGS} "${BACKUP_DIR}/${BACKUP_NAME}.sql.gz" "s3://${S3_BUCKET}/${S3_PREFIX}/${BACKUP_NAME}.sql.gz"
+
+              # List recent S3 backups
+              echo "Recent S3 backups:"
+              aws s3 ls ${S3_ARGS} "s3://${S3_BUCKET}/${S3_PREFIX}/" 2>/dev/null | tail -10 || echo "Could not list S3 contents"
+
+              echo "S3 upload completed at $(date)"
+              {{- end }}
+
               echo "Backup process completed at $(date)"
             volumeMounts:
             - name: backup-storage
@@ -96,78 +158,4 @@ spec:
           - name: backup-storage
             persistentVolumeClaim:
               claimName: {{ .Release.Name }}-supabase-backup-pvc
----
-{{- if .Values.supabase.backup.s3.enabled }}
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: {{ .Release.Name }}-supabase-backup-s3
-  namespace: {{ .Release.Namespace }}
-spec:
-  schedule: {{ .Values.supabase.backup.s3.schedule | quote }}
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 1
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          restartPolicy: OnFailure
-          containers:
-          - name: postgres-backup-s3
-            image: {{ .Values.supabase.backup.image.repository }}:{{ .Values.supabase.backup.image.tag }}
-            imagePullPolicy: {{ .Values.supabase.backup.image.pullPolicy }}
-            env:
-            - name: PGHOST
-              value: {{ .Release.Name }}-supabase-db
-            - name: PGPORT
-              value: "5432"
-            - name: PGDATABASE
-              value: {{ .Values.supabase.secret.db.database }}
-            - name: PGUSER
-              value: {{ .Values.supabase.secret.db.username }}
-            - name: PGPASSWORD
-              value: {{ .Values.supabase.secret.db.password }}
-            - name: AWS_ACCESS_KEY_ID
-              value: {{ .Values.supabase.backup.s3.accessKeyId }}
-            - name: AWS_SECRET_ACCESS_KEY
-              value: {{ .Values.supabase.backup.s3.secretAccessKey }}
-            - name: AWS_DEFAULT_REGION
-              value: {{ .Values.supabase.backup.s3.region }}
-            - name: S3_BUCKET
-              value: {{ .Values.supabase.backup.s3.bucket }}
-            - name: S3_PREFIX
-              value: {{ .Values.supabase.backup.s3.prefix }}
-            command:
-            - /bin/bash
-            - -c
-            - |
-              set -e
-              echo "Starting S3 backup at $(date)"
-              
-              # Install AWS CLI if not present
-              if ! command -v aws &> /dev/null; then
-                apt-get update && apt-get install -y awscli
-              fi
-              
-              # Create backup
-              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-              BACKUP_NAME="supabase_backup_${TIMESTAMP}.dump"
-              
-              echo "Creating backup: ${BACKUP_NAME}"
-              pg_dump -Fc -v | aws s3 cp - "s3://${S3_BUCKET}/${S3_PREFIX}/${BACKUP_NAME}"
-              
-              # List recent backups
-              echo "Recent backups in S3:"
-              aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}/" --recursive | tail -10
-              
-              echo "S3 backup completed at $(date)"
-            resources:
-              requests:
-                memory: {{ .Values.supabase.backup.resources.requests.memory }}
-                cpu: {{ .Values.supabase.backup.resources.requests.cpu }}
-              limits:
-                memory: {{ .Values.supabase.backup.resources.limits.memory }}
-                cpu: {{ .Values.supabase.backup.resources.limits.cpu }}
-{{- end }}
 {{- end }}
