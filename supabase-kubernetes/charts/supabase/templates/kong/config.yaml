@@ -47,6 +47,46 @@ data:
         username: ${DASHBOARD_USERNAME}
         password: ${DASHBOARD_PASSWORD}
     {{- end }}
+
+    # Global CORS Plugin - applies to all services
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "https://planning-poker.app"
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+            - HEAD
+            - PATCH
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Auth-Token
+            - X-CSRF-Token
+            - Authorization
+            - apikey
+            - x-client-info
+            - x-supabase-api-version
+            - Prefer
+            - Range
+            - Content-Profile
+            - accept-profile
+          exposed_headers:
+            - X-Auth-Token
+            - Authorization
+            - Content-Profile
+            - accept-profile
+          max_age: 86400
+
     services:
     {{- if .Values.auth.enabled }}
       - name: auth-v1-open
@@ -56,8 +96,6 @@ data:
             strip_path: true
             paths:
               - /auth/v1/verify
-        plugins:
-          - name: cors
       - name: auth-v1-open-callback
         url: http://{{ include "supabase.auth.fullname" . }}:{{ .Values.auth.service.port }}/callback
         routes:
@@ -65,8 +103,6 @@ data:
             strip_path: true
             paths:
               - /auth/v1/callback
-        plugins:
-          - name: cors
       - name: auth-v1-open-authorize
         url: http://{{ include "supabase.auth.fullname" . }}:{{ .Values.auth.service.port }}/authorize
         routes:
@@ -74,8 +110,6 @@ data:
             strip_path: true
             paths:
               - /auth/v1/authorize
-        plugins:
-          - name: cors
       - name: auth-v1
         _comment: "GoTrue: /auth/v1/* -> http://{{ include "supabase.auth.fullname" . }}:{{ .Values.auth.service.port }}/*"
         url: http://{{ include "supabase.auth.fullname" . }}:{{ .Values.auth.service.port }}
@@ -85,7 +119,6 @@ data:
             paths:
               - /auth/v1/
         plugins:
-          - name: cors
           - name: key-auth
             config:
               hide_credentials: false
@@ -106,7 +139,6 @@ data:
             paths:
               - /rest/v1/
         plugins:
-          - name: cors
           - name: key-auth
             config:
               hide_credentials: true
@@ -125,7 +157,6 @@ data:
             paths:
               - /graphql/v1
         plugins:
-          - name: cors
           - name: key-auth
             config:
               hide_credentials: true
@@ -151,7 +182,6 @@ data:
             paths:
               - /realtime/v1/
         plugins:
-          - name: cors
           - name: key-auth
             config:
               hide_credentials: false
@@ -171,8 +201,6 @@ data:
             strip_path: true
             paths:
               - /storage/v1/
-        plugins:
-          - name: cors
     {{- end }}
     {{- if .Values.functions.enabled }}
       - name: functions-v1
@@ -183,8 +211,6 @@ data:
             strip_path: true
             paths:
               - /functions/v1/
-        plugins:
-          - name: cors
     {{- end }}
     {{- if .Values.analytics.enabled }}
       - name: analytics-v1
@@ -225,7 +251,6 @@ data:
               - /
     {{- if .Values.secret.dashboard }}
         plugins:
-          - name: cors
           - name: basic-auth
             config:
               hide_credentials: true
