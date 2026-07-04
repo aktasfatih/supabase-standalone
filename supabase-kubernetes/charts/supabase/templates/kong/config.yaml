@@ -54,6 +54,7 @@ data:
         config:
           origins:
             - "https://planning-poker.app"
+            - "https://www.planning-poker.app"
           credentials: true
           methods:
             - GET
