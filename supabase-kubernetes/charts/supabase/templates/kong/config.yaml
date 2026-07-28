@@ -192,6 +192,18 @@ data:
               allow:
                 - admin
                 - anon
+          # Strip the browser Cookie header before forwarding to Realtime.
+          # Realtime (Cowboy) authenticates via apikey + the access_token in the
+          # phx_join payload and never reads cookies. The browser auto-attaches
+          # the chunked sb-*-auth-token cookies to the WS handshake (shared
+          # planning-poker.app cookie scope); once they exceed Cowboy's
+          # max_header_value_length (~5-6KB) the handshake is rejected with 431,
+          # silently killing realtime for affected users.
+          - name: request-transformer
+            config:
+              remove:
+                headers:
+                  - Cookie
     {{- end }}
     {{- if .Values.storage.enabled }}
       - name: storage-v1
